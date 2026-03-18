@@ -1,0 +1,39 @@
+# Sets up the environment for the GitHub Copilot coding agent.
+# This workflow mirrors the devcontainer (Containerfile) setup so the agent
+# works in an identical environment to local contributors.
+#
+# Reference: https://docs.github.com/en/copilot/customizing-copilot/customizing-the-development-environment-for-copilot-coding-agent
+
+name: "Copilot Setup Steps"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # The job MUST be named `copilot-setup-steps` for GitHub Copilot to use it.
+  copilot-setup-steps:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install the same version of uv used in the Containerfile.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.9"
+
+      # Install the same Python version used in the Containerfile.
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      # Install project dependencies (frozen, matching the devcontainer).
+      # --no-install-project mirrors the Containerfile's RUN step, which
+      # installs only declared dependencies without installing the project
+      # source itself.
+      - name: Install project dependencies
+        run: uv sync --frozen --python 3.12 --no-install-project
