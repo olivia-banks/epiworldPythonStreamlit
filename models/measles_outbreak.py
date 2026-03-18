@@ -46,7 +46,7 @@ def run_model(params, label_overrides: dict = None):
             if n in params and params[n] != "":
                 try:
                     return Decimal(str(params[n]))
-                except:
+                except Exception:
                     pass
         return Decimal(str(default))
 
