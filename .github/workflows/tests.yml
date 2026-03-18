@@ -14,16 +14,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: uv sync --frozen --all-groups
+      - name: Build dev container image
+        run: docker build -f .devcontainer/Containerfile -t epiworld-dev .
 
       - name: Lint with ruff
-        run: uv run ruff check .
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspaces/epiworldPythonStreamlit" \
+            --user root \
+            epiworld-dev \
+            ruff check .
 
       - name: Run tests
-        run: uv run pytest tests/ -v
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspaces/epiworldPythonStreamlit" \
+            --user root \
+            epiworld-dev \
+            pytest tests/ -v
