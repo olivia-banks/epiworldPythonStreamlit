@@ -1,6 +1,8 @@
 # Sets up the environment for the GitHub Copilot coding agent.
-# This workflow mirrors the devcontainer (Containerfile) setup so the agent
-# works in an identical environment to local contributors.
+# The devcontainer Containerfile is the single source of truth for the
+# project environment. This workflow builds the container image from that
+# Containerfile and runs the agent job inside it, so no setup logic is
+# duplicated here.
 #
 # Reference: https://docs.github.com/en/copilot/customizing-copilot/customizing-the-development-environment-for-copilot-coding-agent
 
@@ -11,29 +13,52 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
-  # The job MUST be named `copilot-setup-steps` for GitHub Copilot to use it.
-  copilot-setup-steps:
+  # Build the dev container image from the Containerfile and push it to GHCR
+  # so the copilot-setup-steps job can reference it directly.
+  build-devcontainer:
     runs-on: ubuntu-24.04
+    outputs:
+      image-ref: ${{ steps.set-ref.outputs.image-ref }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install the same version of uv used in the Containerfile.
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          version: "0.5.9"
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Install the same Python version used in the Containerfile.
-      - name: Set up Python 3.12
-        run: uv python install 3.12
+      - name: Set image reference
+        id: set-ref
+        run: |
+          echo "image-ref=ghcr.io/${{ github.repository }}:devcontainer-${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
-      # Install project dependencies (frozen, matching the devcontainer).
-      # --no-install-project mirrors the Containerfile's RUN step, which
-      # installs only declared dependencies without installing the project
-      # source itself.
-      - name: Install project dependencies
-        run: uv sync --frozen --python 3.12 --no-install-project
+      - name: Build and push dev container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .devcontainer/Containerfile
+          push: true
+          tags: ${{ steps.set-ref.outputs.image-ref }}
+
+  # The job MUST be named `copilot-setup-steps` for GitHub Copilot to use it.
+  # Running inside the built container means all tools (uv, Python, project
+  # dependencies) are already present — no setup logic is duplicated.
+  copilot-setup-steps:
+    needs: build-devcontainer
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ needs.build-devcontainer.outputs.image-ref }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
