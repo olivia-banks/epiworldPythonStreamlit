@@ -1,8 +1,8 @@
 # Sets up the environment for the GitHub Copilot coding agent.
 # The devcontainer Containerfile is the single source of truth for the
-# project environment. This workflow builds the container image from that
-# Containerfile and runs the agent job inside it, so no setup logic is
-# duplicated here.
+# project environment. The image is built locally on the runner from the
+# checked-out Containerfile on every run, so it is always up to date and
+# no container registry is required.
 #
 # Reference: https://docs.github.com/en/copilot/customizing-copilot/customizing-the-development-environment-for-copilot-coding-agent
 
@@ -13,52 +13,19 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
-  # Build the dev container image from the Containerfile and push it to GHCR
-  # so the copilot-setup-steps job can reference it directly.
-  build-devcontainer:
-    runs-on: ubuntu-24.04
-    outputs:
-      image-ref: ${{ steps.set-ref.outputs.image-ref }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set image reference
-        id: set-ref
-        run: |
-          echo "image-ref=ghcr.io/${{ github.repository }}:devcontainer-${{ github.sha }}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push dev container image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: .devcontainer/Containerfile
-          push: true
-          tags: ${{ steps.set-ref.outputs.image-ref }}
-
   # The job MUST be named `copilot-setup-steps` for GitHub Copilot to use it.
-  # Running inside the built container means all tools (uv, Python, project
-  # dependencies) are already present — no setup logic is duplicated.
   copilot-setup-steps:
-    needs: build-devcontainer
     runs-on: ubuntu-24.04
-    container:
-      image: ${{ needs.build-devcontainer.outputs.image-ref }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # Build the dev container image directly from the Containerfile on this
+      # runner. No registry push is needed because the image is used locally.
+      # Building on every run guarantees the image always reflects the current
+      # state of the Containerfile.
+      - name: Build dev container image from Containerfile
+        run: docker build -t devcontainer -f .devcontainer/Containerfile .
