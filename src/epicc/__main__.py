@@ -23,6 +23,80 @@ from epicc.utils.parameter_ui import (
 )
 from epicc.utils.section_renderer import render_sections
 
+# ---------------------------------------------------------------------------
+# Export / print state helpers (inlined from epicc.utils.export)
+# ---------------------------------------------------------------------------
+
+RESULTS_PAYLOAD_KEY = "results_payload"
+PRINT_REQUESTED_KEY = "print_requested"
+PRINT_TRIGGER_TOKEN_KEY = "print_trigger_token"
+
+
+def initialize_export_state() -> None:
+    if RESULTS_PAYLOAD_KEY not in st.session_state:
+        st.session_state[RESULTS_PAYLOAD_KEY] = None
+
+    if PRINT_REQUESTED_KEY not in st.session_state:
+        st.session_state[PRINT_REQUESTED_KEY] = False
+
+    if PRINT_TRIGGER_TOKEN_KEY not in st.session_state:
+        st.session_state[PRINT_TRIGGER_TOKEN_KEY] = 0
+
+
+def clear_export_state() -> None:
+    st.session_state[RESULTS_PAYLOAD_KEY] = None
+    st.session_state[PRINT_REQUESTED_KEY] = False
+    st.session_state[PRINT_TRIGGER_TOKEN_KEY] = 0
+
+
+def has_results() -> bool:
+    return st.session_state.get(RESULTS_PAYLOAD_KEY) is not None
+
+
+def get_results_payload() -> dict[str, Any] | None:
+    payload = st.session_state.get(RESULTS_PAYLOAD_KEY)
+    if payload is None:
+        return None
+
+    return payload
+
+
+def set_results_payload(payload: dict[str, Any] | None) -> None:
+    st.session_state[RESULTS_PAYLOAD_KEY] = payload
+
+
+def render_export_button() -> None:
+    export_clicked = st.sidebar.button(
+        "Export Results as PDF", disabled=not has_results()
+    )
+
+    if export_clicked and has_results():
+        st.session_state[PRINT_REQUESTED_KEY] = True
+        st.session_state[PRINT_TRIGGER_TOKEN_KEY] = (
+            st.session_state.get(PRINT_TRIGGER_TOKEN_KEY, 0) + 1
+        )
+
+
+def trigger_print_if_requested() -> None:
+    if not st.session_state.get(PRINT_REQUESTED_KEY):
+        return
+
+    if not has_results():
+        st.session_state[PRINT_REQUESTED_KEY] = False
+        return
+
+    trigger_token = st.session_state.get(PRINT_TRIGGER_TOKEN_KEY, 0)
+    st.html(
+        (
+            "<script>"
+            f"window.__epiccPrintToken = {trigger_token};"
+            "setTimeout(function(){ window.parent.print(); }, 0);"
+            "</script>"
+        ),
+        unsafe_allow_javascript=True,
+    )
+    st.session_state[PRINT_REQUESTED_KEY] = False
+
 
 def _load_styles() -> None:
     with importlib.resources.files("epicc").joinpath("web/sidebar.css").open("rb") as f:
@@ -35,11 +109,18 @@ def _sync_active_model(model_key: str) -> dict[str, Any]:
     if active_model_key != model_key:
         st.session_state.active_model_key = model_key
         st.session_state.params = {}
+        clear_export_state()
 
     if "params" not in st.session_state:
         st.session_state.params = {}
 
     return st.session_state.params
+
+
+def _render_results_panel(results_payload: dict[str, Any]) -> None:
+    st.title(results_payload.get("title", CONFIG.app.title))
+    st.write(results_payload.get("description", ""))
+    render_sections(results_payload.get("sections", []))
 
 
 def _render_excel_parameter_inputs(
@@ -61,6 +142,7 @@ def _render_excel_parameter_inputs(
     if st.session_state.get("excel_active_identity") != excel_identity:
         st.session_state.excel_active_identity = excel_identity
         st.session_state.params = {}
+        clear_export_state()
         params = st.session_state.params
         should_refresh_params = True
 
@@ -135,6 +217,7 @@ def _render_python_parameter_inputs(
     if st.session_state.get("active_param_identity") != param_identity:
         st.session_state.active_param_identity = param_identity
         st.session_state.params = {}
+        clear_export_state()
         params = st.session_state.params
         should_refresh_params = True
 
@@ -281,11 +364,11 @@ def _render_validation_error_details(
 
 def _run_excel_simulation(
     params: dict[str, Any], label_overrides: dict[str, str]
-) -> None:
+) -> dict[str, Any] | None:
     uploaded_excel_model = st.session_state.get("excel_model_uploader")
     if not uploaded_excel_model:
         st.error("Please upload an Excel model file first.")
-        st.stop()
+        return None
 
     with st.spinner(f"Running Excel-driven model: {uploaded_excel_model.name}..."):
         results = run_excel_driven_model(
@@ -295,9 +378,11 @@ def _run_excel_simulation(
             sheet_name=None,
             label_overrides=label_overrides,
         )
-        st.title(results.get("model_title", "Excel Driven Model"))
-        st.write(results.get("model_description", ""))
-        render_sections(results["sections"])
+        return {
+            "title": results.get("model_title", "Excel Driven Model"),
+            "description": results.get("model_description", ""),
+            "sections": results.get("sections", []),
+        }
 
 
 def _run_python_simulation(
@@ -305,12 +390,20 @@ def _run_python_simulation(
     model: BaseSimulationModel,
     typed_params: BaseModel,
     label_overrides: dict[str, str],
-) -> None:
+) -> dict[str, Any]:
+    # NOTE: Previously this function rendered results directly with st.* calls and
+    # returned None implicitly. That meant set_results_payload(None) was always
+    # called, has_results() was always False, and the PDF export button was
+    # permanently disabled. It now returns a payload dict stored in session state;
+    # rendering is deferred to _render_results_panel after st.rerun().
     with st.spinner(f"Running {selected_label}..."):
-        st.title(model.model_title or CONFIG.app.title)
-        st.write(model.model_description or CONFIG.app.description)
         results = model.run(typed_params, label_overrides=label_overrides)
-        render_sections(model.build_sections(results))
+        sections = model.build_sections(results)
+    return {
+        "title": model.model_title or CONFIG.app.title,
+        "description": model.model_description or CONFIG.app.description,
+        "sections": sections,
+    }
 
 
 _load_styles()
@@ -328,6 +421,7 @@ is_excel_model = selected_label == "Excel Driven Model"
 model_key = selected_label
 
 params = _sync_active_model(model_key)
+initialize_export_state()
 
 st.sidebar.subheader("Input Parameters")
 
@@ -355,20 +449,41 @@ else:
             _render_validation_error_details(selected_label, exc, sidebar=True)
             has_input_errors = True
 
-if not st.sidebar.button("Run Simulation", disabled=has_input_errors):
-    st.stop()
+run_clicked = st.sidebar.button("Run Simulation", disabled=has_input_errors)
+render_export_button()
 
-if is_excel_model:
-    _run_excel_simulation(params, label_overrides)
-    st.stop()
-
-if typed_params is None:
+# For Excel models typed_params is never set (not needed by that path).
+# Only block execution for Python models when parameter validation has failed.
+if not is_excel_model and typed_params is None:
     st.error("Cannot run simulation until parameter validation errors are fixed.")
     st.stop()
 
-_run_python_simulation(
-    selected_label,
-    model_registry[selected_label],
-    typed_params,
-    label_overrides,
-)
+if run_clicked:
+    if is_excel_model:
+        set_results_payload(_run_excel_simulation(params, label_overrides))
+    else:
+        assert typed_params is not None  # guaranteed by the st.stop() guard above
+        set_results_payload(
+            _run_python_simulation(
+                selected_label,
+                model_registry[selected_label],
+                typed_params,
+                label_overrides,
+            )
+        )
+
+    # Always rerun after a successful run so the export button reflects the new
+    # state (has_results() == True) and _render_results_panel is reached below.
+    if has_results():
+        st.rerun()
+
+elif not has_results():
+    # No run was clicked and no stored results exist yet; nothing to display.
+    st.stop()
+
+
+results_payload = get_results_payload()
+if results_payload:
+    _render_results_panel(results_payload)
+
+trigger_print_if_requested()
