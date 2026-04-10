@@ -42,9 +42,6 @@ class TBCostParams(BaseModel):
     nurse_checkin_hours: float = Field(
         alias="Time for nurse to check in w/ pt in motel or home (hrs)", ge=0.0
     )
-    hourly_wage_public_health_worker: float = Field(
-        alias="Hourly wage for public health worker", ge=0.0
-    )
 
 
 class TBIsolationParams(BaseModel):
@@ -72,7 +69,7 @@ class TBIsolationParams(BaseModel):
     remaining_years_of_life: int = Field(alias="Remaining years of life", ge=0)
 
 
-class TBIsolationModel(BaseSimulationModel):
+class TBIsolationModel(BaseSimulationModel[TBIsolationParams]):
     def human_name(self) -> str:
         return "TB Isolation"
 
@@ -99,7 +96,7 @@ class TBIsolationModel(BaseSimulationModel):
         ):
             return dict(YAML().load(f))
 
-    def parameter_model(self) -> type[BaseModel]:
+    def parameter_model(self) -> type[TBIsolationParams]:
         return TBIsolationParams
 
     def run(
