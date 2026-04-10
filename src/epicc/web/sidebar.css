@@ -50,7 +50,8 @@
     header,
     footer,
     #MainMenu,
-    .no-print {
+    .no-print,
+    .export-hint {
         display: none !important;
     }
 
