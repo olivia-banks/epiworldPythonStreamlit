@@ -42,9 +42,6 @@ class TBCostParams(BaseModel):
     nurse_checkin_hours: float = Field(
         alias="Time for nurse to check in w/ pt in motel or home (hrs)", ge=0.0
     )
-    hourly_wage_public_health_worker: float = Field(
-        alias="Hourly wage for public health worker", ge=0.0
-    )
 
 
 class TBIsolationParams(BaseModel):
