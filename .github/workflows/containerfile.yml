@@ -12,7 +12,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: epiforesite/epiworldpythonstreamlit
+  IMAGE_NAME: epiforesite/epicc
 
 jobs:
   build-and-push:

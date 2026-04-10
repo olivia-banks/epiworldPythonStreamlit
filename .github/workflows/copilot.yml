@@ -11,7 +11,7 @@ jobs:
   copilot:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/epiforesite/epiworldpythonstreamlit:latest
+      image: ghcr.io/epiforesite/epicc:latest
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
