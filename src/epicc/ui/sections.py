@@ -1,3 +1,10 @@
+"""Legacy section renderer.
+
+New code should use epicc.ui.report.get_report_renderer() instead.
+render_sections() is retained for backward compatibility with hand-written
+models that still implement build_sections() returning the old dict format.
+"""
+
 from typing import Any
 
 import streamlit as st

@@ -11,7 +11,7 @@ class Author(BaseModel):
 
 
 class Parameter(BaseModel):
-    type: Literal["integer", "number", "string", "boolean"]
+    type: Literal["integer", "number", "string", "boolean", "enum"]
     label: str
     description: str | None = None
     default: int | float | str | bool
@@ -19,6 +19,10 @@ class Parameter(BaseModel):
     max: int | float | None = None
     unit: str | None = None
     references: list[str] = Field(default_factory=list)
+    options: dict[str, str] | None = Field(
+        None,
+        description="Ordered mapping of constant→display label for enum parameters. Required when type='enum'.",
+    )
 
 
 class ParameterGroup(BaseModel):

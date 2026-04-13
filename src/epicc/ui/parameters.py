@@ -17,6 +17,9 @@ def _build_help_text(spec: Parameter) -> str | None:
     parts: list[str] = []
     if spec.description:
         parts.append(spec.description)
+    if spec.type == "enum" and spec.options:
+        opt_lines = "\n".join(f"\u2022 {k}: {v}" for k, v in spec.options.items())
+        parts.append(f"Options:\n{opt_lines}")
     if spec.unit:
         parts.append(f"Unit: {spec.unit}")
     if spec.references:
@@ -86,6 +89,22 @@ def _render_spec_widget(
             kwargs["value"] = native_default
 
         params[param_id] = container.number_input(**kwargs)
+
+    elif spec.type == "enum" and spec.options:
+        option_keys = list(spec.options.keys())
+        selectbox_kwargs: dict[str, Any] = {
+            "label": display_label,
+            "options": option_keys,
+            "format_func": lambda v, _m=spec.options: _m.get(v, v),
+            "key": widget_key,
+            "help": help_text,
+        }
+        if widget_key not in st.session_state:
+            try:
+                selectbox_kwargs["index"] = option_keys.index(str(default_value))
+            except ValueError:
+                selectbox_kwargs["index"] = 0
+        params[param_id] = container.selectbox(**selectbox_kwargs)
 
     else:
         # string

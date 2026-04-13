@@ -167,12 +167,13 @@ def create_model_class(
         for param_id, value in raw_dict.items():
             param_spec = model_def.parameters.get(param_id)
             if param_spec is not None and isinstance(value, str):
-                coerce = _type_coerce.get(param_spec.type)
-                if coerce is not None:
-                    try:
-                        value = coerce(value)
-                    except (ValueError, TypeError):
-                        pass
+                if param_spec.type != "enum":
+                    coerce = _type_coerce.get(param_spec.type)
+                    if coerce is not None:
+                        try:
+                            value = coerce(value)
+                        except (ValueError, TypeError):
+                            pass
             param_dict[param_id] = value
 
         # Evaluate for each scenario

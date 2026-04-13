@@ -92,18 +92,19 @@ parameters:
       - "Marks SM et al. (2014). Costs of active tuberculosis treatment in the United States. IJTLD."
 
   isolation_type:
-    type: integer
-    label: "Isolation type (1=hospital,2=motel,3=home)"
-    description: "Type of isolation setting: 1=hospital isolation, 2=motel isolation with nurse visits, 3=home isolation with nurse visits."
-    default: 3
-    min: 1
-    max: 3
-    unit: "category"
+    type: enum
+    label: "Isolation type"
+    description: "Type of isolation setting for the patient."
+    default: HOME_ISO
+    options:
+      HOSP_ISO: "Hospital"
+      MOTEL_ISO: "Motel, with nurse"
+      HOME_ISO: "Home, with nurse"
 
   isolation_cost:
     type: number
-    label: "Daily isolation cost (isolation_cost)"
-    description: "Daily cost for hospital isolation (used when isolation_type=1 and direct_medical_cost_day=0)."
+    label: "Daily isolation cost"
+    description: "Daily cost for hospital isolation (used when isolation_type=HOSP_ISO and direct_medical_cost_day=0)."
     default: 85.0
     min: 0
     max: 10000
@@ -112,7 +113,7 @@ parameters:
   direct_medical_cost_day:
     type: number
     label: "Direct medical cost of a day of isolation"
-    description: "Daily direct medical cost for hospital isolation (used when isolation_type=1 and >0)."
+    description: "Daily direct medical cost for hospital isolation (used when isolation_type=HOSP_ISO and >0)."
     default: 3996.0
     min: 0
     max: 20000
@@ -123,7 +124,7 @@ parameters:
   motel_room_cost:
     type: number
     label: "Cost of motel room per day"
-    description: "Daily cost of motel room rental for isolation (used when isolation_type=2)."
+    description: "Daily cost of motel room rental for isolation (used when isolation_type=MOTEL_ISO)."
     default: 150.0
     min: 0
     max: 1000
@@ -240,7 +241,7 @@ equations:
     unit: "USD/day"
     output: "number"
     compute: |
-      (direct_medical_cost_day if (isolation_type == 1 and direct_medical_cost_day > 0) else (isolation_cost if isolation_type == 1 else (motel_room_cost + hourly_wage_nurse * nurse_checkin_hours if isolation_type == 2 else hourly_wage_nurse * nurse_checkin_hours)))
+      (direct_medical_cost_day if (isolation_type == "HOSP_ISO" and direct_medical_cost_day > 0) else (isolation_cost if isolation_type == "HOSP_ISO" else (motel_room_cost + hourly_wage_nurse * nurse_checkin_hours if isolation_type == "MOTEL_ISO" else hourly_wage_nurse * nurse_checkin_hours)))
 
   eq_direct:
     label: "Direct cost of isolation"

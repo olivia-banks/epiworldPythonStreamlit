@@ -6,7 +6,6 @@ from typing import Any
 import streamlit as st
 from pydantic import BaseModel, ValidationError
 
-from epicc.config import CONFIG
 from epicc.formats import VALID_PARAMETER_SUFFIXES
 from epicc.model.base import BaseSimulationModel
 from epicc.model.models import get_all_models
@@ -16,6 +15,7 @@ from epicc.ui.parameters import (
     render_parameters_with_indent,
     reset_parameters_to_defaults,
 )
+from epicc.ui.report import get_report_renderer
 from epicc.ui.sections import render_sections
 
 # ---------------------------------------------------------------------------
@@ -110,12 +110,6 @@ def _sync_active_model(model_key: str) -> dict[str, Any]:
         st.session_state.params = {}
 
     return st.session_state.params
-
-
-def _render_results_panel(results_payload: dict[str, Any]) -> None:
-    st.title(results_payload.get("title", CONFIG.app.title))
-    st.write(results_payload.get("description", ""))
-    render_sections(results_payload.get("sections", []))
 
 
 def _render_python_parameter_inputs(
@@ -318,13 +312,8 @@ def _run_python_simulation(
     # permanently disabled. It now returns a payload dict stored in session state;
     # rendering is deferred to _render_results_panel after st.rerun().
     with st.spinner(f"Running {selected_label}..."):
-        results = model.run(typed_params, label_overrides=label_overrides)
-        sections = model.build_sections(results)
-    return {
-        "title": model.model_title or CONFIG.app.title,
-        "description": model.model_description or CONFIG.app.description,
-        "sections": sections,
-    }
+        run_output = model.run(typed_params, label_overrides=label_overrides)
+    return {"run_output": run_output}
 
 
 _load_styles()
@@ -371,29 +360,36 @@ if typed_params is None:
     st.error("Cannot run simulation until parameter validation errors are fixed.")
     st.stop()
 
+active_model = model_registry[selected_label]
+renderer = get_report_renderer(active_model)
+
 if run_clicked:
     assert typed_params is not None  # guaranteed by the st.stop() guard above
     set_results_payload(
         _run_python_simulation(
             selected_label,
-            model_registry[selected_label],
+            active_model,
             typed_params,
             label_overrides,
         )
     )
-
-    # Always rerun after a successful run so the export button reflects the new
-    # state (has_results() == True) and _render_results_panel is reached below.
     if has_results():
         st.rerun()
 
-elif not has_results():
-    # No run was clicked and no stored results exist yet; nothing to display.
+if has_results():
+    run_output = get_results_payload()["run_output"]  # type: ignore[index]
+    if renderer:
+        renderer.render(run_output)
+    else:
+        # Legacy fallback for hand-written models without get_model_definition()
+        sections = active_model.build_sections(run_output)
+        st.title(active_model.model_title)
+        render_sections(sections)
+else:
+    if renderer:
+        renderer.render(None)
+    else:
+        st.info("Configure parameters in the sidebar, then click **Run Simulation**.")
     st.stop()
-
-
-results_payload = get_results_payload()
-if results_payload:
-    _render_results_panel(results_payload)
 
 trigger_print_if_requested()
