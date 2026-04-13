@@ -9,6 +9,7 @@ dependencies = [
     "openpyxl>=3.1.0",
     "pydantic>=2.12.5",
     "ruamel-yaml>=0.19.1",
+    "plotly>=6.0.0",
 ]
 
 [dependency-groups]
@@ -30,7 +31,7 @@ mypy_path = "src"
 explicit_package_bases = true
 
 [tool.stlite]
-title = "epicc Cost Calculator"
+title = "EPICC Cost Calculator"
 mount_dirs = ["src"]
 text_suffixes = [".py", ".yaml", ".yml", ".css", ".js", ".html"]
 css_url = "https://cdn.jsdelivr.net/npm/@stlite/browser@0.85.1/build/stlite.css"
