@@ -102,9 +102,6 @@ class TableBlockRenderer(BlockRenderer):
         self._scenarios = scenarios
 
     def render(self, run_results: dict[str, Any] | None) -> None:
-        if self._block.caption:
-            st.caption(self._block.caption)
-
         if run_results is None:
             labels = [r.label for r in self._block.rows]
             preview = ", ".join(labels[:3]) + ("…" if len(labels) > 3 else "")
@@ -113,12 +110,14 @@ class TableBlockRenderer(BlockRenderer):
                 f"Table — {len(labels)} rows ({preview})" if labels else "Table",
                 "Run simulation to see results",
             )
-            return
+        else:
+            try:
+                st.dataframe(self._build_df(run_results), width='stretch')
+            except Exception as exc:
+                _callout("⚠️", "Table could not be rendered", str(exc))
 
-        try:
-            st.dataframe(self._build_df(run_results), width='stretch')
-        except Exception as exc:
-            _callout("⚠️", "Table could not be rendered", str(exc))
+            if self._block.caption:
+                st.caption(self._block.caption)
 
     def _build_df(self, run_results: dict[str, Any]) -> pd.DataFrame:
         by_id: dict[str, dict] = run_results.get("scenario_results_by_id", {})

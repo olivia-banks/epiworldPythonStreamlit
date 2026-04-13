@@ -18,10 +18,10 @@ def render_sections(sections: list[dict[str, Any]]) -> None:
             st.markdown(section["content"], unsafe_allow_html=True)
 
         elif block_type == "table":
+            st.dataframe(section["content"], width='stretch')
             caption = section.get("caption")
             if caption:
                 st.caption(caption)
-            st.dataframe(section["content"], width='stretch')
 
         elif block_type == "figure":
             st.subheader(section.get("title", "Figure"))
