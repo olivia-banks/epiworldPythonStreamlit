@@ -1,18 +1,3 @@
-"""
-OO report rendering pipeline.
-
-Each block type has a dedicated renderer subclass that handles three states
-transparently through a single render(run_results) call:
-
-  - run_results is None  → skeleton placeholder
-  - run_results is set   → live computed data
-  - data is missing/bad  → error callout (same visual language as skeleton)
-
-The public entry point is get_report_renderer(model), which constructs a
-ReportRenderer from a model instance without importing anything from the
-model layer (model layer stays clean; UI layer may depend on model types).
-"""
-
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -23,66 +8,34 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from epicc.model.parameters import format_value
 from epicc.model.schema import Figure, FigureBlock, GraphBlock, MarkdownBlock, Scenario, TableBlock
 
 
-# ---------------------------------------------------------------------------
-# Shared helpers
-# ---------------------------------------------------------------------------
+def _callout(summary: str, detail: str | None = None) -> None:
+    """A muted informational callout used for skeletons and errors."""
 
-def _format_value(value: Any, equation_spec: Any = None) -> str:
-    """Format a computed value for display in tables."""
-    if isinstance(value, (int, float)):
-        is_currency = equation_spec and getattr(equation_spec, "unit", None) in (
-            "USD",
-            "dollars",
-            "$",
-        )
-        if abs(value) >= 1000:
-            formatted = f"{value:,.0f}"
-        elif abs(value) >= 100:
-            formatted = f"{value:,.2f}"
-        elif abs(value) >= 1:
-            formatted = f"{value:.2f}"
-        else:
-            formatted = f"{value:.4f}"
-        return f"${formatted}" if is_currency else formatted
-    return str(value)
-
-
-def _callout(icon: str, summary: str, detail: str | None = None) -> None:
-    """Render a muted informational callout used for skeletons and errors."""
     detail_html = (
         f"<br><span style='font-size:0.75rem;'>{detail}</span>" if detail else ""
     )
+
     st.markdown(
         f"<div style='border:1px solid #e0e0e0; border-radius:4px; "
         f"padding:0.75rem 1rem; color:#999; background:#fafafa; "
-        f"font-size:0.85rem;'>{icon} {summary}{detail_html}</div>",
+        f"font-size:0.85rem;'>{summary}{detail_html}</div>",
         unsafe_allow_html=True,
     )
 
 
-# ---------------------------------------------------------------------------
-# Block renderer base + subclasses
-# ---------------------------------------------------------------------------
-
 class BlockRenderer(ABC):
-    """Renders one report block — with live data, as a skeleton, or as an error."""
+    """Some sort of block in the report."""
 
     @abstractmethod
     def render(self, run_results: dict[str, Any] | None) -> None:
-        """Render the block.
-
-        Args:
-            run_results: The raw dict returned by model.run(), or None if the
-                         simulation has not been executed yet.
-        """
+        ... 
 
 
 class MarkdownBlockRenderer(BlockRenderer):
-    """Always renders immediately; no data dependency."""
-
     def __init__(self, block: MarkdownBlock) -> None:
         self._block = block
 
@@ -91,8 +44,6 @@ class MarkdownBlockRenderer(BlockRenderer):
 
 
 class TableBlockRenderer(BlockRenderer):
-    """Renders a scenario comparison table, or a skeleton before the run."""
-
     def __init__(
         self,
         block: TableBlock,
@@ -106,20 +57,21 @@ class TableBlockRenderer(BlockRenderer):
     def render(self, run_results: dict[str, Any] | None) -> None:
         if run_results is None:
             labels = [r.label for r in self._block.rows]
-            preview = ", ".join(labels[:3]) + ("…" if len(labels) > 3 else "")
+            preview = ", ".join(labels[:3]) + ("..." if len(labels) > 3 else "")
             _callout(
-                "📊",
-                f"Table — {len(labels)} rows ({preview})" if labels else "Table",
+                f"Table - {len(labels)} rows ({preview})" if labels else "Table",
                 "Run simulation to see results",
             )
-        else:
-            try:
-                st.dataframe(self._build_df(run_results), width='stretch')
-            except Exception as exc:
-                _callout("⚠️", "Table could not be rendered", str(exc))
 
-            if self._block.caption:
-                st.caption(self._block.caption)
+            return
+
+        try:
+            st.dataframe(self._build_df(run_results), width='stretch')
+        except Exception as exc:
+            _callout("Table could not be rendered", str(exc))
+
+        if self._block.caption:
+            st.caption(self._block.caption)
 
     def _build_df(self, run_results: dict[str, Any]) -> pd.DataFrame:
         by_id: dict[str, dict] = run_results.get("scenario_results_by_id", {})
@@ -148,7 +100,7 @@ class TableBlockRenderer(BlockRenderer):
             data["label"].append(row.label)
             for lbl, eq_res in zip(col_labels, col_results):
                 val = eq_res.get(row.value, "N/A")
-                data[lbl].append(_format_value(val, self._equations.get(row.value)))
+                data[lbl].append(format_value(val, self._equations.get(row.value)))
 
         df = pd.DataFrame(data).set_index("label")
         df.index.name = None
@@ -156,8 +108,6 @@ class TableBlockRenderer(BlockRenderer):
 
 
 class FigureBlockRenderer(BlockRenderer):
-    """Renders a figure asset, or a skeleton/error when unavailable."""
-
     def __init__(self, block: FigureBlock, figure: Figure | None) -> None:
         self._block = block
         self._figure = figure
@@ -165,7 +115,6 @@ class FigureBlockRenderer(BlockRenderer):
     def render(self, run_results: dict[str, Any] | None) -> None:
         if self._figure is None:
             _callout(
-                "⚠️",
                 "Figure not found",
                 f"No figure with id '{self._block.id}'",
             )
@@ -173,20 +122,17 @@ class FigureBlockRenderer(BlockRenderer):
 
         if run_results is None:
             _callout(
-                "📈",
-                f"Figure — {self._figure.title}",
+                f"Figure - {self._figure.title}",
                 "Run simulation to see results",
             )
             return
 
         # TODO: execute py_code when figure rendering is implemented
         st.subheader(self._figure.title)
-        _callout("📈", "Figure rendering not yet implemented")
+        _callout("Figure rendering not yet implemented")
 
 
 class GraphBlockRenderer(BlockRenderer):
-    """Renders a Plotly chart block in one of several supported kinds."""
-
     _KIND_LABELS = {
         "bar": "Bar chart",
         "stacked_bar": "Stacked bar chart",
@@ -209,8 +155,7 @@ class GraphBlockRenderer(BlockRenderer):
         if run_results is None:
             kind_label = self._KIND_LABELS.get(self._block.kind, self._block.kind)
             _callout(
-                "📊",
-                f"{kind_label}" + (f" — {self._block.title}" if self._block.title else ""),
+                f"{kind_label}" + (f" - {self._block.title}" if self._block.title else ""),
                 "Run simulation to see results",
             )
             return
@@ -218,7 +163,7 @@ class GraphBlockRenderer(BlockRenderer):
         try:
             fig = self._build_figure(run_results)
         except Exception as exc:
-            _callout("⚠️", "Graph could not be rendered", str(exc))
+            _callout("Graph could not be rendered", str(exc))
             return
 
         # Chart!
@@ -325,19 +270,16 @@ class GraphBlockRenderer(BlockRenderer):
 
 
 def _raw_value(value: Any) -> float:
-    """Coerce an equation result to a plain float for Plotly."""
+    """Coerce an equation result to a plain float for Plotly, the picky."""
+
     try:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
 
 
-# ---------------------------------------------------------------------------
-# Root renderer
-# ---------------------------------------------------------------------------
-
 class ReportRenderer:
-    """Renders a full model report with title, description, and all blocks."""
+    """Render full report."""
 
     def __init__(
         self,
@@ -350,13 +292,6 @@ class ReportRenderer:
         self._block_renderers = block_renderers
 
     def render(self, run_results: dict[str, Any] | None, *, hint: str | None = None) -> None:
-        """Render the report.
-
-        Args:
-            run_results: Raw output of model.run(), or None for skeleton mode.
-            hint: Optional caption shown below the title when run_results is
-                  None, prompting the user to run the simulation.
-        """
         st.title(self._title)
         st.write(self._description)
         if run_results is None and hint:
@@ -369,33 +304,29 @@ class ReportRenderer:
                 )
 
 
-# ---------------------------------------------------------------------------
-# Public factory
-# ---------------------------------------------------------------------------
-
-
 def get_report_renderer(model: Any) -> ReportRenderer:
-    """Construct a ReportRenderer for a model instance."""
     model_def = model.get_model_definition()
-
     figures_by_id = {fig.id: fig for fig in model_def.figures}
     block_renderers: list[BlockRenderer] = []
 
     for block in model_def.report:
         if isinstance(block, MarkdownBlock):
             block_renderers.append(MarkdownBlockRenderer(block))
+            
         elif isinstance(block, TableBlock):
             block_renderers.append(
                 TableBlockRenderer(
                     block, model_def.equations, model_def.resolved_scenarios()
                 )
             )
+
         elif isinstance(block, GraphBlock):
             block_renderers.append(
                 GraphBlockRenderer(
                     block, model_def.equations, model_def.resolved_scenarios()
                 )
             )
+
         elif isinstance(block, FigureBlock):
             block_renderers.append(
                 FigureBlockRenderer(block, figures_by_id.get(block.id))

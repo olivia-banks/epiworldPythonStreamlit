@@ -1,5 +1,3 @@
-"""Tests for equation evaluator with dependency resolution."""
-
 import pytest
 
 from epicc.model.evaluator import EquationEvaluator

@@ -36,7 +36,7 @@ def iter_formats() -> Iterator[tuple[str, type[BaseFormat]]]:
     """Yield ``(suffix, format_class)`` for every entry in the format registry.
 
     Suffixes are returned with their leading dot (e.g. ``".yaml"``, ``".xlsx"``).
-    Aliases such as ``".yml"`` are included — callers that need unique classes
+    Aliases such as ".yml" are included - callers that need unique classes
     can deduplicate using a ``seen`` set.
 
     Use this function everywhere format-registry iteration is needed instead of

@@ -1,4 +1,4 @@
-/* Remove weird sidebar padding at top — kept in case sidebar is re-enabled. */
+/* Remove weird sidebar padding at top - kept in case sidebar is re-enabled. */
 [data-testid="stSidebarHeader"] {
     display: none;
 }

@@ -1,5 +1,3 @@
-"""Tests for epicc.formats.xlsx (XLSXFormat)."""
-
 from io import BytesIO
 
 import openpyxl

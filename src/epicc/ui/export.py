@@ -1,5 +1,3 @@
-"""PDF export button, browser-print trigger, and parameter export."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,14 +20,15 @@ def _export_dialog(
     unique_formats: list[tuple[str, type[BaseFormat]]],
     pydantic_model: type[BaseModel] | None = None
 ) -> None:
-    """Dialog for selecting export format and downloading parameters."""
     safe_name = model_name.lower().replace(" ", "_")
     
     st.markdown("""
-    Choose how to save your current parameter settings:
-    
-    - **YAML**: A human-readable text format that works well with version control and can be easily shared and edited by collaborators.
-    - **Excel (XLSX)**: A familiar spreadsheet format that opens in Microsoft Excel, Google Sheets, or other spreadsheet applications. Perfect if you prefer working with data in a grid format.
+    **EPICC** supports a variety of formats for exporting your parameter settings, each with its own advantages:
+
+    - **Excel (XLSX)**: A familiar spreadsheet format that opens in Microsoft Excel, Google Sheets, or other spreadsheet applications.
+    - **YAML**: A text-based format, ideal for easy sharing. Can be editted in any text editor.
+
+    If you are unsure, YAML is a good default choice for its simplicity and readability.
     """)
     
     # Prepare format options
@@ -45,7 +44,6 @@ def _export_dialog(
         help="Choose how you'd like to save your parameters"
     )
     
-    # Find the corresponding format class
     selected_cls = None
     selected_suffix = None
     for suffix, cls in unique_formats:
@@ -81,7 +79,6 @@ def render_parameter_export_modal(
     pydantic_model: type[BaseModel] | None = None,
     container: Any = None,
 ) -> None:
-    """Render a single 'Save Parameters' button that opens a modal with format selection."""
     rc = container if container is not None else st
     
     # Collect unique format classes in registration order.
@@ -93,28 +90,13 @@ def render_parameter_export_modal(
             seen.add(cls)
             unique.append((suffix.lstrip("."), cls))
     
-    # Show the Save Parameters button
     if rc.button("Save Parameters", width='stretch', key=f"save_params_btn_{model_name.lower().replace(' ', '_')}"):
         _export_dialog(model_name, param_data, unique, pydantic_model)
 
 
-def render_parameter_export_inline(
-    model_name: str,
-    param_data: dict[str, Any],
-    *,
-    pydantic_model: type[BaseModel] | None = None,
-    container: Any = None,
-) -> None:
-    """Legacy function - use render_parameter_export_modal instead."""
-    render_parameter_export_modal(model_name, param_data, pydantic_model=pydantic_model, container=container)
-
-
 def render_pdf_export_button(container: Any = None) -> None:
-    """Render a direct Save report as PDF button.
+    # Render a direct Save report as PDF button.
 
-    Disabled until results are available. Intended for placement in the
-    results column so it is visible without any extra navigation.
-    """
     rc = container if container is not None else st
     clicked = rc.button(
         "Save report as PDF",
@@ -122,6 +104,7 @@ def render_pdf_export_button(container: Any = None) -> None:
         width='stretch',
         type='primary',
     )
+
     if clicked and has_results():
         st.session_state[_PRINT_REQUESTED_KEY] = True
         st.session_state[_PRINT_TOKEN_KEY] = (

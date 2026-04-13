@@ -1,5 +1,3 @@
-"""Integration tests for interpreted models."""
-
 from io import BytesIO
 
 import pytest

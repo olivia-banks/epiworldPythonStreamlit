@@ -1,5 +1,3 @@
-"""Tests for epicc.model.loader (importlib.resources-based loading)."""
-
 import pytest
 
 from epicc.model.base import BaseSimulationModel

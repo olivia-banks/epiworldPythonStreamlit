@@ -33,7 +33,7 @@ def _build_help_text(spec: Parameter) -> str | None:
     if spec.description:
         parts.append(spec.description)
     if spec.type == "enum" and spec.options:
-        opt_lines = "\n".join(f"\u2022 {k}: {v}" for k, v in spec.options.items())
+        opt_lines = "\n".join(f"- {k}: {v}" for k, v in spec.options.items())
         parts.append(f"Options:\n{opt_lines}")
     if spec.unit:
         parts.append(f"Unit: {spec.unit}")
@@ -156,7 +156,7 @@ def _render_param(
 
 
 def _collect_group_param_ids(nodes: list) -> set[str]:
-    """Recursively collect all param IDs referenced in a group tree."""
+    """Recursively collect all param IDs in a group tree."""
     ids: set[str] = set()
     for node in nodes:
         if isinstance(node, str):
@@ -219,7 +219,7 @@ def reset_parameters_to_defaults(
     model_id: str,
     param_specs: dict[str, Parameter] | None = None,
 ) -> None:
-    """Reset session-state widgets and params to defaults from flattened parameter data."""
+    """Reset session-state widgets and params to defaults."""
     items = list(param_dict.items())
     i = 0
     n = len(items)
@@ -264,17 +264,7 @@ def render_parameters_with_indent(
     param_groups: list | None = None,
     container: Any = None,
 ) -> None:
-    """Render flattened parameter data as widgets inside *container*.
-
-    When *param_groups* is provided the parameters are arranged according to
-    the group tree (arbitrary depth).  Top-level groups become expanders;
-    deeper sub-groups render as bold sub-headers inside the containing
-    expander.  Any parameters not referenced by the tree are rendered flat
-    above the groups.
-
-    When *param_groups* is None the parameters are rendered flat (legacy
-    tab-indent behaviour is preserved for uploaded parameter files).
-    """
+    """Render flattened parameter data as widgets inside container."""
     rc = container if container is not None else st
     if param_groups is not None:
         specs = param_specs or {}
@@ -342,10 +332,6 @@ def render_parameters_with_indent(
         i = j
 
 
-# ---------------------------------------------------------------------------
-# Validation error display
-# ---------------------------------------------------------------------------
-
 def render_validation_error(
     model_name: str, exc: ValidationError, *, container: Any = None
 ) -> None:
@@ -381,10 +367,6 @@ def render_validation_error(
             key=f"{safe_name}_{scope}_validation_download_{digest}",
         )
 
-
-# ---------------------------------------------------------------------------
-# Parameter flattening / merging helpers
-# ---------------------------------------------------------------------------
 
 def _unflatten_indented_params(flat_params: dict[str, Any]) -> dict[str, Any]:
     root: dict[str, Any] = {}
@@ -426,10 +408,6 @@ def build_typed_params(
     return model.parameter_model().model_validate(payload)
 
 
-# ---------------------------------------------------------------------------
-# Sidebar parameter panel (file upload + reset + group widgets)
-# ---------------------------------------------------------------------------
-
 def render_sidebar_parameters(
     model: BaseSimulationModel,
     model_key: str,
@@ -437,15 +415,10 @@ def render_sidebar_parameters(
     *,
     container: Any = None,
 ) -> tuple[dict[str, Any], dict[str, str], dict[str, Any], bool]:
-    """Render the full parameter panel for *model* inside *container*.
-
-    Returns ``(params, label_overrides, model_defaults_flat, has_errors)``.
-    ``has_errors`` is ``True`` when the panel should block the Run button.
-    """
+    """Render the full parameter panel for model inside container."""
     label_overrides: dict[str, str] = {}
     ct = container if container is not None else st
 
-    # --- file upload --------------------------------------------------------
     uploaded = ct.file_uploader(
         "Load parameters from file",
         type=sorted(VALID_PARAMETER_SUFFIXES),
@@ -471,7 +444,6 @@ def render_sidebar_parameters(
         clear_results()
         should_refresh = True
 
-    # --- load defaults ------------------------------------------------------
     try:
         model_defaults = load_model_params(
             model,
@@ -500,7 +472,6 @@ def render_sidebar_parameters(
             for key, default_text in current_headers.items():
                 st.session_state[f"py_label_{model_key}_{key}"] = default_text
 
-    # --- scenario label overrides -------------------------------------------
     current_headers = model.scenario_labels
     if current_headers:
         with ct.expander("Output Scenario Headers", expanded=False):
@@ -519,7 +490,6 @@ def render_sidebar_parameters(
                         f"Label for '{default_label}'", key=widget_key
                     )
 
-    # --- parameter widgets --------------------------------------------------
     render_parameters_with_indent(
         model_defaults,
         params,

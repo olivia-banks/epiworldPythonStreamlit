@@ -14,7 +14,6 @@ from epicc.model.ast_validator import (
 )
 from epicc.model.evaluator import EquationEvaluator
 from epicc.model.factory import (
-    InterpretedModelParams,
     create_model_class,
     create_model_instance,
 )
@@ -28,7 +27,6 @@ __all__ = [
     # Model creation
     "create_model_class",
     "create_model_instance",
-    "InterpretedModelParams",
     # Schema
     "Model",
     # Parameters

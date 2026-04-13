@@ -1,5 +1,3 @@
-"""Tests for AST validation of equation expressions."""
-
 import pytest
 
 from epicc.model.ast_validator import (
@@ -69,7 +67,7 @@ class TestCompileEquation:
     def test_function_names_in_dependencies(self):
         """Test that function names are included in dependencies."""
         code, deps = compile_equation("sum(range(limit))")
-        # Function names are included - evaluator provides them in namespace
+        # Function names are included, evaluator provides them in namespace
         assert "sum" in deps
         assert "range" in deps
         assert "limit" in deps

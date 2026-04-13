@@ -24,24 +24,12 @@ from epicc.ui.state import (
 )
 from epicc.ui.styles import load_styles
 
-# ---------------------------------------------------------------------------
-# One-time setup  (set_page_config MUST be the first Streamlit call)
-# ---------------------------------------------------------------------------
-
 st.set_page_config(page_title="EPICC Cost Calculator", layout="wide")
 load_styles()
 initialize_state()
 
-# ---------------------------------------------------------------------------
-# Model registry
-# ---------------------------------------------------------------------------
-
 all_models = get_all_models()
 model_registry: dict[str, BaseSimulationModel] = {m.human_name(): m for m in all_models}
-
-# ---------------------------------------------------------------------------
-# Header row: title | model selector
-# ---------------------------------------------------------------------------
 
 hdr_title, hdr_model = st.columns([3, 3])
 hdr_title.title("EPICC Cost Calculator")
@@ -49,15 +37,11 @@ selected_label: str | None = hdr_model.selectbox(
     "Model",
     list(model_registry),
     index=None,
-    placeholder="Select a model…",
+    placeholder="Select a model...",
     label_visibility="collapsed",
 )
 
 st.divider()
-
-# ---------------------------------------------------------------------------
-# No model selected — show intro
-# ---------------------------------------------------------------------------
 
 if selected_label is None:
     st.markdown(
@@ -101,22 +85,10 @@ left, run the simulation, and see the results on the right. Happy exploring!
 
     st.stop()
 
-# ---------------------------------------------------------------------------
-# Model selected — sync state
-# ---------------------------------------------------------------------------
-
 active_model = model_registry[selected_label]
 params = sync_active_model(selected_label)
 
-# ---------------------------------------------------------------------------
-# Two-column layout: parameters (left) | results (right)
-# ---------------------------------------------------------------------------
-
 param_col, result_col = st.columns([2, 3], gap="large")
-
-# ---------------------------------------------------------------------------
-# Parameters panel
-# ---------------------------------------------------------------------------
 
 with param_col:
     params, label_overrides, model_defaults_flat, has_input_errors = render_sidebar_parameters(
@@ -165,10 +137,6 @@ with param_col:
         "Run Simulation", disabled=has_input_errors, width='stretch', type='primary'
     )
 
-# ---------------------------------------------------------------------------
-# Results panel
-# ---------------------------------------------------------------------------
-
 with result_col:
     trigger_print_if_requested()
 
@@ -176,19 +144,11 @@ with result_col:
         st.warning("Fix parameter errors to enable simulation.")
         st.stop()
 
-    # -----------------------------------------------------------------------
-    # Run
-    # -----------------------------------------------------------------------
-
     if run_clicked:
         with st.spinner(f"Running {selected_label}..."):
             run_output = active_model.run(typed_params, label_overrides=label_overrides)
         set_run_output(run_output)
         st.rerun()
-
-    # -----------------------------------------------------------------------
-    # Render report
-    # -----------------------------------------------------------------------
 
     renderer = get_report_renderer(active_model)
     _HINT = "This report has not been filled, since your simulation has not been run. Run the simulation to see the results here."

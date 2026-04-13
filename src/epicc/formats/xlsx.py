@@ -165,7 +165,7 @@ def _flatten(model: BaseModel, prefix: str = "") -> list[tuple[str, Any, str]]:
 
 
 def _field_descriptions(model: type[BaseModel], prefix: str = "") -> dict[str, str]:
-    """Return a mapping of dot-notation key → field description for *model*'s fields."""
+    """Return a mapping of dot-notation key -> field description for *model*'s fields."""
     result: dict[str, str] = {}
     for name, field_info in model.model_fields.items():
         key = f"{prefix}.{name}" if prefix else name

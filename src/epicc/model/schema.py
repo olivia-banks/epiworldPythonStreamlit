@@ -21,7 +21,7 @@ class Parameter(BaseModel):
     references: list[str] = Field(default_factory=list)
     options: dict[str, str] | None = Field(
         None,
-        description="Ordered mapping of constant→display label for enum parameters. Required when type='enum'.",
+        description="Ordered mapping of constant->display label for enum parameters. Required when type='enum'.",
     )
 
 
@@ -54,10 +54,6 @@ class Scenario(BaseModel):
     label: str
     vars: ScenarioVars
 
-
-# ---------------------------------------------------------------------------
-# Report block types
-# ---------------------------------------------------------------------------
 
 class TableRow(BaseModel):
     label: str
@@ -102,10 +98,6 @@ ReportBlock = Annotated[
     Field(discriminator="type"),
 ]
 
-
-# ---------------------------------------------------------------------------
-# Top-level figure asset
-# ---------------------------------------------------------------------------
 
 class Figure(BaseModel):
     id: str
