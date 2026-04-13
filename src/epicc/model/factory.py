@@ -241,15 +241,11 @@ def create_model_class(
             scenario_results[label] = eq_results
             scenario_results_by_id[scenario.id] = eq_results
 
-        # Legacy rows (from table: or None)
-        legacy_rows = model_def.table.rows if model_def.table is not None else []
-
         return {
             "scenario_results": scenario_results,
             "scenario_results_by_id": scenario_results_by_id,
             "scenarios": scenarios,
             "label_overrides": label_overrides,
-            "rows": legacy_rows,
         }
 
     def build_sections(self, results: dict[str, Any]) -> list[dict[str, Any]]:
@@ -301,53 +297,32 @@ def create_model_class(
             df.index.name = None
             return df
 
-        # --- Report blocks path ---
-        if model_def.report is not None:
-            sections: list[dict[str, Any]] = []
-            for block in model_def.report:
-                if isinstance(block, MarkdownBlock):
-                    sections.append({"type": "markdown", "content": block.content})
+        # --- Report blocks ---
+        sections: list[dict[str, Any]] = []
+        for block in model_def.report:
+            if isinstance(block, MarkdownBlock):
+                sections.append({"type": "markdown", "content": block.content})
 
-                elif isinstance(block, TableBlock):
-                    df = _build_table_df(block.rows, block.columns)
+            elif isinstance(block, TableBlock):
+                df = _build_table_df(block.rows, block.columns)
+                sections.append(
+                    {
+                        "type": "table",
+                        "caption": block.caption,
+                        "content": df,
+                    }
+                )
+
+            elif isinstance(block, FigureBlock):
+                fig = figures_by_id.get(block.id)
+                if fig is not None:
                     sections.append(
                         {
-                            "type": "table",
-                            "caption": block.caption,
-                            "content": df,
+                            "type": "figure",
+                            "title": fig.title,
+                            "content": f"Figure: {fig.alt_text or 'Visualization'}",
                         }
                     )
-
-                elif isinstance(block, FigureBlock):
-                    fig = figures_by_id.get(block.id)
-                    if fig is not None:
-                        sections.append(
-                            {
-                                "type": "figure",
-                                "title": fig.title,
-                                "content": f"Figure: {fig.alt_text or 'Visualization'}",
-                            }
-                        )
-            return sections
-
-        # --- Legacy path (introduction + single table + figures) ---
-        sections = []
-        if model_def.introduction:
-            sections.append({"type": "markdown", "content": model_def.introduction})
-
-        rows_spec = results["rows"]
-        df = _build_table_df(rows_spec, column_ids=None)
-        sections.append({"type": "table", "caption": None, "content": df})
-
-        for figure in model_def.figures:
-            sections.append(
-                {
-                    "type": "figure",
-                    "title": figure.title,
-                    "content": f"Figure: {figure.alt_text or 'Visualization'}",
-                }
-            )
-
         return sections
 
     # Add metadata as class attributes
@@ -376,7 +351,6 @@ def create_model_class(
         "default_params": default_params,
         "parameter_model": parameter_model,
         "run": run,
-        "build_sections": build_sections,
         # Additional metadata methods
         "get_source_path": get_source_path,
         "get_model_definition": get_model_definition,

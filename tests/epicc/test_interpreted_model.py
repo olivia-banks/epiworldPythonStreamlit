@@ -2,18 +2,18 @@
 
 from io import BytesIO
 
-import pandas as pd
 import pytest
 
 from epicc.model import create_model_class, create_model_instance
 from epicc.model.base import BaseSimulationModel
 from epicc.model.schema import (
     Equation,
+    MarkdownBlock,
     Model,
     Parameter,
     Scenario,
     ScenarioVars,
-    Table,
+    TableBlock,
     TableRow,
 )
 
@@ -52,25 +52,28 @@ def simple_model_def():
                 compute="eq_subtotal + eq_tax",
             ),
         },
-        table=Table(
-            scenarios=[
-                Scenario(
-                    id="low_tax",
-                    label="Low Tax (5%)",
-                    vars=ScenarioVars(tax_rate=0.05),  # type: ignore
-                ),
-                Scenario(
-                    id="high_tax",
-                    label="High Tax (10%)",
-                    vars=ScenarioVars(tax_rate=0.10),  # type: ignore
-                ),
-            ],
-            rows=[
-                TableRow(label="Subtotal", value="eq_subtotal"),
-                TableRow(label="Tax", value="eq_tax"),
-                TableRow(label="Total", value="eq_total", emphasis="strong"),
-            ],
-        ),
+        scenarios=[
+            Scenario(
+                id="low_tax",
+                label="Low Tax (5%)",
+                vars=ScenarioVars(tax_rate=0.05),  # type: ignore
+            ),
+            Scenario(
+                id="high_tax",
+                label="High Tax (10%)",
+                vars=ScenarioVars(tax_rate=0.10),  # type: ignore
+            ),
+        ],
+        report=[
+            TableBlock(
+                type="table",
+                rows=[
+                    TableRow(label="Subtotal", value="eq_subtotal"),
+                    TableRow(label="Tax", value="eq_tax"),
+                    TableRow(label="Total", value="eq_total", emphasis="strong"),
+                ],
+            ),
+        ],
     )
 
 
@@ -171,34 +174,33 @@ class TestModelExecution:
         assert low_tax["eq_total"] == 210.0
 
 
-class TestSectionBuilding:
-    """Test build_sections() method."""
+class TestRunResultsShape:
+    """Test that run() returns the dict shape expected by report renderers."""
 
-    def test_build_sections_returns_list(self, simple_model_def):
-        """Test that build_sections returns a list."""
+    def test_run_returns_scenario_results_by_id(self, simple_model_def):
+        """Test that run() returns scenario_results_by_id, used by TableBlockRenderer."""
         model = create_model_instance(simple_model_def)
         param_model = model.parameter_model()
         params = param_model(unit_cost=10.0, quantity=5)
 
         results = model.run(params)
-        sections = model.build_sections(results)
 
-        assert isinstance(sections, list)
-        assert len(sections) > 0
+        assert "scenario_results_by_id" in results
+        assert "low_tax" in results["scenario_results_by_id"]
+        assert "high_tax" in results["scenario_results_by_id"]
 
-    def test_sections_contain_dataframe(self, simple_model_def):
-        """Test that sections contain DataFrame via legacy table path."""
+    def test_scenario_results_by_id_match_scenario_results(self, simple_model_def):
+        """Test that id-keyed and label-keyed results carry identical equation values."""
         model = create_model_instance(simple_model_def)
         param_model = model.parameter_model()
         params = param_model(unit_cost=10.0, quantity=5)
 
         results = model.run(params)
-        sections = model.build_sections(results)
 
-        # Legacy path: one table section with a DataFrame in "content"
-        table_sections = [s for s in sections if s.get("type") == "table"]
-        assert len(table_sections) > 0
-        assert isinstance(table_sections[0]["content"], pd.DataFrame)
+        by_id = results["scenario_results_by_id"]
+        assert by_id["low_tax"]["eq_subtotal"] == 50.0
+        assert by_id["low_tax"]["eq_tax"] == 2.5
+        assert by_id["high_tax"]["eq_tax"] == 5.0
 
 
 class TestErrorHandling:
@@ -211,10 +213,8 @@ class TestErrorHandling:
             description="Has bad equation",
             parameters={"x": Parameter(type="number", label="X", default=1.0)},
             equations={"bad": Equation(label="Bad", compute="1 + (2")},
-            table=Table(
-                scenarios=[Scenario(id="s1", label="S1", vars=ScenarioVars())],
-                rows=[TableRow(label="Bad", value="bad")],
-            ),
+            scenarios=[Scenario(id="s1", label="S1", vars=ScenarioVars())],
+            report=[TableBlock(type="table", rows=[TableRow(label="Bad", value="bad")])],
         )
 
         with pytest.raises(ValueError, match="Failed to build equation evaluator"):
@@ -230,10 +230,8 @@ class TestErrorHandling:
                 "a": Equation(label="A", compute="b + 1"),
                 "b": Equation(label="B", compute="a + 1"),
             },
-            table=Table(
-                scenarios=[Scenario(id="s1", label="S1", vars=ScenarioVars())],
-                rows=[TableRow(label="A", value="a")],
-            ),
+            scenarios=[Scenario(id="s1", label="S1", vars=ScenarioVars())],
+            report=[TableBlock(type="table", rows=[TableRow(label="A", value="a")])],
         )
 
         with pytest.raises(ValueError, match="Circular dependency"):

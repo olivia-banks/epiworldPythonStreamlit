@@ -34,6 +34,9 @@ class XLSXFormat(BaseFormat[Workbook]):
     e.g. "costs.latent" will be parsed into {"costs": {"latent": <value>}}.
     """
 
+    mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    label = "Excel"
+
     def read(self, data: IO) -> tuple[dict[str, Any], Workbook]:
         """
         Read an XLSX file and return its contents as a dictionary.

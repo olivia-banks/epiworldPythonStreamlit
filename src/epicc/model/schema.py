@@ -104,49 +104,22 @@ class Figure(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-# ---------------------------------------------------------------------------
-# Legacy table container — kept for backward compatibility
-# ---------------------------------------------------------------------------
-
-class _LegacyTable(BaseModel):
-    """Deprecated. Use top-level scenarios: and report: instead."""
-    scenarios: list[Scenario] = Field(default_factory=list)
-    rows: list[TableRow] = Field(default_factory=list)
-
-
-# Keep the public name for code that still imports Table
-Table = _LegacyTable
-
-
 class Model(BaseModel):
     title: str
     description: str
     authors: list[Author] = Field(default_factory=list)
-    introduction: str | None = None
 
     parameters: dict[str, Parameter]
     equations: dict[str, Equation]
 
     groups: list[str | ParameterGroup] | None = None
 
-    # New top-level scenario list (preferred)
-    scenarios: list[Scenario] | None = None
-
-    # New report block list (preferred)
-    report: list[ReportBlock] | None = None
-
-    # Legacy combined table block — honoured when scenarios/report are absent
-    table: _LegacyTable | None = None
-
+    scenarios: list[Scenario]
+    report: list[ReportBlock]
     figures: list[Figure] = Field(default_factory=list)
 
     def resolved_scenarios(self) -> list[Scenario]:
-        """Return scenarios from the preferred location or fall back to legacy table."""
-        if self.scenarios is not None:
-            return self.scenarios
-        if self.table is not None:
-            return self.table.scenarios
-        return []
+        return self.scenarios
 
 
-__all__ = ["Model", "ParameterGroup", "Table", "TableRow", "TableBlock", "MarkdownBlock", "FigureBlock", "ReportBlock"]
+__all__ = ["Model", "ParameterGroup", "TableRow", "TableBlock", "MarkdownBlock", "FigureBlock", "ReportBlock"]

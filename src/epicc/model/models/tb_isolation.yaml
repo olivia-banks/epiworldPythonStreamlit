@@ -49,7 +49,7 @@ parameters:
 
   prob_latent_to_active_2yr:
     type: number
-    label: "First 2 years (prob_latent_to_active_2yr)"
+    label: "First 2 years"
     description: "Probability that latent TB progresses to active disease within the first 2 years after infection."
     default: 0.05
     min: 0
@@ -71,7 +71,7 @@ parameters:
 
   cost_latent:
     type: number
-    label: "Cost of latent TB infection (cost_latent)"
+    label: "Cost of latent TB infection"
     description: "Direct medical cost of diagnosing and treating one case of latent TB infection."
     default: 300.0
     min: 0
@@ -82,7 +82,7 @@ parameters:
 
   cost_active:
     type: number
-    label: "Cost of active TB infection (cost_active)"
+    label: "Cost of active TB infection"
     description: "Direct medical cost of treating one case of active TB disease, including hospitalization, medications, and monitoring."
     default: 34523.0
     min: 0
@@ -306,6 +306,10 @@ report:
       14-day isolation (standard) versus 5-day isolation (shortened). The model accounts for
       direct isolation costs, lost productivity, and the long-term costs of secondary TB
       infections.
+
+      $$
+      \LaTeX \text{ test.}
+      $$
 
       ## Scenarios
       - **14-day Isolation**: Standard isolation protocol for infectious TB patients

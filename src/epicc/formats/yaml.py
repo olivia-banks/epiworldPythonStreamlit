@@ -18,6 +18,9 @@ from epicc.formats.base import BaseFormat
 class YAMLFormat(BaseFormat[CommentedMap]):
     """Reader for YAML parameter files."""
 
+    mime_type = "text/yaml"
+    label = "YAML"
+
     def read(self, data: IO) -> tuple[dict[str, Any], CommentedMap]:
         """Read a YAML file and return its contents as a dictionary.
 

@@ -3,24 +3,6 @@ description: "Estimates hospitalization, tracing, and productivity costs for mea
 authors:
   - name: Edward Wang
   - name: Olivia Banks
-introduction: |
-  ## Overview
-  This calculator estimates the economic burden of measles outbreaks by modeling three
-  key cost components: direct medical costs (hospitalization), indirect costs (lost
-  productivity from quarantine), and public health response costs (contact tracing).
-
-  ## Scenarios
-  The model evaluates three outbreak scenarios based on historical U.S. measles outbreaks:
-  - **22 Cases**: Small outbreak (typical in high-vaccination areas)
-  - **100 Cases**: Medium outbreak
-  - **803 Cases**: Large outbreak (similar to 2019 U.S. outbreak)
-
-  ## Key Assumptions
-  - All costs are in USD
-  - Hospitalization rate and costs based on CDC surveillance data
-  - Contact tracing effort scales linearly with case count
-  - Lost productivity only counts quarantined unvaccinated contacts
-  - Wage figures represent average hourly earnings
 
 parameters:
   cost_measles_hospitalization:

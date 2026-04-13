@@ -46,10 +46,6 @@ class BaseSimulationModel(ABC, Generic[ParamsT]):
     def parameter_model(self) -> type[ParamsT]:
         """Return a Pydantic model used to validate uploaded parameter files."""
 
-    @abstractmethod
-    def build_sections(self, results: dict[str, Any]) -> list[dict[str, Any]]:
-        """Transform run results into section payloads for UI rendering."""
-
     @property
     def parameter_specs(self) -> dict[str, Any] | None:
         """Optional mapping of param_id to Parameter schema objects for rich UI rendering."""

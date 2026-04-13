@@ -8,7 +8,6 @@ import streamlit as st
 from pydantic import BaseModel, ValidationError
 
 from epicc.formats import VALID_PARAMETER_SUFFIXES
-from epicc.ui.export import render_parameter_export
 from epicc.model.base import BaseSimulationModel
 from epicc.model.parameters import load_model_params
 from epicc.ui.state import (
@@ -263,18 +262,20 @@ def render_parameters_with_indent(
     model_id: str,
     param_specs: dict[str, Parameter] | None = None,
     param_groups: list | None = None,
+    container: Any = None,
 ) -> None:
-    """Render flattened parameter data as sidebar widgets.
+    """Render flattened parameter data as widgets inside *container*.
 
     When *param_groups* is provided the parameters are arranged according to
-    the group tree (arbitrary depth).  Top-level groups become sidebar
-    expanders; deeper sub-groups render as bold sub-headers inside the
-    containing expander.  Any parameters not referenced by the tree are
-    rendered flat above the groups.
+    the group tree (arbitrary depth).  Top-level groups become expanders;
+    deeper sub-groups render as bold sub-headers inside the containing
+    expander.  Any parameters not referenced by the tree are rendered flat
+    above the groups.
 
     When *param_groups* is None the parameters are rendered flat (legacy
     tab-indent behaviour is preserved for uploaded parameter files).
     """
+    rc = container if container is not None else st
     if param_groups is not None:
         specs = param_specs or {}
         # Render params not mentioned in any group first (safety-net)
@@ -283,11 +284,11 @@ def render_parameters_with_indent(
             if param_id not in grouped_ids:
                 widget_key = f"{model_id}:{param_id}"
                 spec = specs.get(param_id)
-                _render_param(param_id, default_value, widget_key, params, st.sidebar, spec)
+                _render_param(param_id, default_value, widget_key, params, rc, spec)
 
         # Render the group tree
         for node in param_groups:
-            _render_group_node(node, specs, param_dict, params, model_id, st.sidebar, depth=0)
+            _render_group_node(node, specs, param_dict, params, model_id, rc, depth=0)
         return
 
     # --- Legacy flat / tab-indented rendering (no groups defined) ---
@@ -304,11 +305,11 @@ def render_parameters_with_indent(
             widget_key = f"{model_id}:{label}"
             spec = param_specs.get(label) if param_specs else None
             if spec is not None:
-                _render_spec_widget(label, spec, value, widget_key, params, st.sidebar)
+                _render_spec_widget(label, spec, value, widget_key, params, rc)
             elif widget_key in st.session_state:
-                params[label] = st.sidebar.text_input(label, key=widget_key)
+                params[label] = rc.text_input(label, key=widget_key)
             else:
-                params[label] = st.sidebar.text_input(
+                params[label] = rc.text_input(
                     label, value=str(value), key=widget_key
                 )
             i += 1
@@ -325,7 +326,7 @@ def render_parameters_with_indent(
                 children.append((subkey.strip(), subval))
             j += 1
 
-        expander = st.sidebar.expander(label, expanded=False)
+        expander = rc.expander(label, expanded=False)
         for sublabel, subval in children:
             widget_key = f"{model_id}:{label}:{sublabel}"
             spec = param_specs.get(sublabel) if param_specs else None
@@ -346,9 +347,9 @@ def render_parameters_with_indent(
 # ---------------------------------------------------------------------------
 
 def render_validation_error(
-    model_name: str, exc: ValidationError, *, sidebar: bool
+    model_name: str, exc: ValidationError, *, container: Any = None
 ) -> None:
-    target = st.sidebar if sidebar else st
+    target = container if container is not None else st
     issues = exc.errors()
     issue_count = len(issues)
     target.error(f"Parameters do not match {model_name} schema ({issue_count} issues).")
@@ -365,7 +366,7 @@ def render_validation_error(
         safe_name = re.sub(r"[^a-z0-9]+", "_", model_name.lower()).strip("_")
         full_details = exc.json(indent=2)
         digest = hashlib.sha1(full_details.encode()).hexdigest()[:10]
-        scope = "sidebar" if sidebar else "main"
+        scope = "panel" if container is not None else "main"
         st.text_area(
             "Full details (copyable)",
             value=full_details,
@@ -433,19 +434,21 @@ def render_sidebar_parameters(
     model: BaseSimulationModel,
     model_key: str,
     params: dict[str, Any],
+    *,
+    container: Any = None,
 ) -> tuple[dict[str, Any], dict[str, str], dict[str, Any], bool]:
-    """Render the full sidebar parameter panel for *model*.
+    """Render the full parameter panel for *model* inside *container*.
 
     Returns ``(params, label_overrides, model_defaults_flat, has_errors)``.
-    ``has_errors`` is ``True`` when the sidebar should block the Run button.
+    ``has_errors`` is ``True`` when the panel should block the Run button.
     """
     label_overrides: dict[str, str] = {}
+    ct = container if container is not None else st
 
     # --- file upload --------------------------------------------------------
-    uploaded = st.sidebar.file_uploader(
-        "Optional parameter file",
+    uploaded = ct.file_uploader(
+        "Load parameters from file",
         type=sorted(VALID_PARAMETER_SUFFIXES),
-        help="If omitted, model defaults are used.",
         accept_multiple_files=False,
     )
 
@@ -476,14 +479,14 @@ def render_sidebar_parameters(
             uploaded_name=uploaded.name if uploaded else None,
         )
     except ValidationError as exc:
-        render_validation_error(model.human_name(), exc, sidebar=True)
+        render_validation_error(model.human_name(), exc, container=ct)
         return params, label_overrides, {}, True
     except ValueError as exc:
-        st.sidebar.error(f"Could not read parameter file for {model.human_name()}: {exc}")
+        ct.error(f"Could not read parameter file for {model.human_name()}: {exc}")
         return params, label_overrides, {}, True
 
     if not model_defaults:
-        st.sidebar.info("No default parameters defined for this model.")
+        ct.info("No default parameters defined for this model.")
         return params, label_overrides, {}, True
 
     # --- reset callback -----------------------------------------------------
@@ -499,11 +502,9 @@ def render_sidebar_parameters(
     if should_refresh:
         _handle_reset()
 
-    st.sidebar.button("Reset Parameters", on_click=_handle_reset)
-
     # --- scenario label overrides -------------------------------------------
     if current_headers:
-        with st.sidebar.expander("Output Scenario Headers", expanded=False):
+        with ct.expander("Output Scenario Headers", expanded=False):
             st.caption("Rename the output headers")
             for key, default_text in current_headers.items():
                 widget_key = f"py_label_{model_key}_{key}"
@@ -526,15 +527,10 @@ def render_sidebar_parameters(
         model_id=model_key,
         param_specs=model.parameter_specs,
         param_groups=model.parameter_groups,
+        container=ct,
     )
 
-    # --- parameter export ---------------------------------------------------
-    typed_params = build_typed_params(model, model_defaults, params)
-    render_parameter_export(
-        model.human_name(),
-        typed_params.model_dump(),
-        pydantic_model=type(typed_params),
-    )
+    ct.button("Reset Parameters", on_click=_handle_reset, use_container_width=True)
 
     return params, label_overrides, model_defaults, False
 

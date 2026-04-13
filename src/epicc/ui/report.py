@@ -199,14 +199,18 @@ class ReportRenderer:
         self._description = model_description
         self._block_renderers = block_renderers
 
-    def render(self, run_results: dict[str, Any] | None) -> None:
+    def render(self, run_results: dict[str, Any] | None, *, hint: str | None = None) -> None:
         """Render the report.
 
         Args:
             run_results: Raw output of model.run(), or None for skeleton mode.
+            hint: Optional caption shown below the title when run_results is
+                  None, prompting the user to run the simulation.
         """
         st.title(self._title)
         st.write(self._description)
+        if run_results is None and hint:
+            st.info(hint)
         for i, renderer in enumerate(self._block_renderers):
             renderer.render(run_results)
             if i < len(self._block_renderers) - 1:
@@ -219,35 +223,15 @@ class ReportRenderer:
 # Public factory
 # ---------------------------------------------------------------------------
 
-def _build_synthetic_report(model_def: Any) -> list:
-    """Synthesise a report block list from legacy introduction + table fields."""
-    blocks: list = []
-    if model_def.introduction:
-        blocks.append(MarkdownBlock(type="markdown", content=model_def.introduction))
-    if model_def.table and model_def.table.rows:
-        blocks.append(TableBlock(type="table", columns=None, rows=model_def.table.rows))
-    return blocks
 
-
-def get_report_renderer(model: Any) -> ReportRenderer | None:
-    """Construct a ReportRenderer for a model instance.
-
-    Returns None if the model does not expose get_model_definition() (e.g.
-    hand-written Python models that have not been migrated).
-    """
-    if not hasattr(model, "get_model_definition"):
-        return None
-
+def get_report_renderer(model: Any) -> ReportRenderer:
+    """Construct a ReportRenderer for a model instance."""
     model_def = model.get_model_definition()
-    report = model_def.report if model_def.report is not None else _build_synthetic_report(model_def)
-
-    if not report:
-        return None
 
     figures_by_id = {fig.id: fig for fig in model_def.figures}
     block_renderers: list[BlockRenderer] = []
 
-    for block in report:
+    for block in model_def.report:
         if isinstance(block, MarkdownBlock):
             block_renderers.append(MarkdownBlockRenderer(block))
         elif isinstance(block, TableBlock):

@@ -1,4 +1,4 @@
-/* Remove weird sidebar padding at top. */
+/* Remove weird sidebar padding at top — kept in case sidebar is re-enabled. */
 [data-testid="stSidebarHeader"] {
     display: none;
 }
@@ -10,10 +10,6 @@ div[data-testid="InputInstructions"] > span:nth-child(1) {
 
 /* Property tooltips. */
 [data-baseweb="tooltip"] {
-    /* Tooltips in sidebar are pressed against the corner, so add a little margin. */
-    margin-left: 0.5rem;
-
-    /* Add a bigger drop shadow to make it more visible against the dark sidebar background. */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
@@ -56,6 +52,7 @@ div[data-testid="InputInstructions"] > span:nth-child(1) {
         margin: 0.5in;
     }
 
+    /* Hide the parameter panel (first column), header row, and Streamlit chrome */
     [data-testid="stSidebar"],
     [data-testid="stToolbar"],
     [data-testid="stDecoration"],
@@ -66,6 +63,16 @@ div[data-testid="InputInstructions"] > span:nth-child(1) {
     #MainMenu,
     .no-print,
     .export-hint {
+        display: none !important;
+    }
+
+    /* Hide the params column (first child of the two-column split) */
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
+        display: none !important;
+    }
+
+    /* Hide the header divider and title/model-selector row */
+    [data-testid="stMainBlockContainer"] > div:first-child {
         display: none !important;
     }
 
