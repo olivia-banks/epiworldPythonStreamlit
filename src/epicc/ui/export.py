@@ -15,6 +15,89 @@ from epicc.formats.base import BaseFormat
 from epicc.ui.state import has_results, _PRINT_REQUESTED_KEY, _PRINT_TOKEN_KEY
 
 
+@st.dialog("Save Parameters")
+def _export_dialog(
+    model_name: str,
+    param_data: dict[str, Any],
+    unique_formats: list[tuple[str, type[BaseFormat]]],
+    pydantic_model: type[BaseModel] | None = None
+) -> None:
+    """Dialog for selecting export format and downloading parameters."""
+    safe_name = model_name.lower().replace(" ", "_")
+    
+    st.markdown("""
+    Choose how to save your current parameter settings:
+    
+    - **YAML**: A human-readable text format that works well with version control and can be easily shared and edited by collaborators.
+    - **Excel (XLSX)**: A familiar spreadsheet format that opens in Microsoft Excel, Google Sheets, or other spreadsheet applications. Perfect if you prefer working with data in a grid format.
+    """)
+    
+    # Prepare format options
+    format_options = [cls.label for _, cls in unique_formats]
+    default_index = 0  # YAML is default
+    if "YAML" in format_options:
+        default_index = format_options.index("YAML")
+    
+    selected_format = st.selectbox(
+        "Select file format:",
+        options=format_options,
+        index=default_index,
+        help="Choose how you'd like to save your parameters"
+    )
+    
+    # Find the corresponding format class
+    selected_cls = None
+    selected_suffix = None
+    for suffix, cls in unique_formats:
+        if cls.label == selected_format:
+            selected_cls = cls
+            selected_suffix = suffix
+            break
+    
+    if selected_cls and selected_suffix:
+        try:
+            fmt = get_format(Path(f"params.{selected_suffix}"))
+            kwargs: dict[str, Any] = {}
+            if pydantic_model is not None:
+                kwargs["pydantic_model"] = pydantic_model
+            data = fmt.write(param_data, **kwargs)
+            
+            st.download_button(
+                label=f"Download {selected_format} file",
+                data=data,
+                file_name=f"{safe_name}_params.{selected_suffix}",
+                mime=selected_cls.mime_type,
+                type="primary",
+                use_container_width=True
+            )
+        except Exception as exc:
+            st.error(f"Could not generate {selected_format} file: {exc}")
+
+
+def render_parameter_export_modal(
+    model_name: str,
+    param_data: dict[str, Any],
+    *,
+    pydantic_model: type[BaseModel] | None = None,
+    container: Any = None,
+) -> None:
+    """Render a single 'Save Parameters' button that opens a modal with format selection."""
+    rc = container if container is not None else st
+    
+    # Collect unique format classes in registration order.
+    seen: set[type[BaseFormat]] = set()
+    unique: list[tuple[str, type[BaseFormat]]] = []
+    
+    for suffix, cls in iter_formats():
+        if cls not in seen:
+            seen.add(cls)
+            unique.append((suffix.lstrip("."), cls))
+    
+    # Show the Save Parameters button
+    if rc.button("Save Parameters", width='stretch', key=f"save_params_btn_{model_name.lower().replace(' ', '_')}"):
+        _export_dialog(model_name, param_data, unique, pydantic_model)
+
+
 def render_parameter_export_inline(
     model_name: str,
     param_data: dict[str, Any],
@@ -22,41 +105,8 @@ def render_parameter_export_inline(
     pydantic_model: type[BaseModel] | None = None,
     container: Any = None,
 ) -> None:
-    """Render inline parameter download buttons for every registered writable format.
-
-    Intended to be placed directly below the parameter file uploader so that
-    the load/save relationship is obvious from proximity alone.
-    """
-    rc = container if container is not None else st
-    safe_name = model_name.lower().replace(" ", "_")
-
-    # Collect unique format classes in registration order.
-    seen: set[type[BaseFormat]] = set()
-    unique: list[tuple[str, type[BaseFormat]]] = []
-    for suffix, cls in iter_formats():
-        if cls not in seen:
-            seen.add(cls)
-            unique.append((suffix.lstrip("."), cls))
-
-    rc.caption("Save current parameters")
-    cols = rc.columns(len(unique))
-    for col, (suffix, fmt_cls) in zip(cols, unique):
-        try:
-            fmt = get_format(Path(f"params.{suffix}"))
-            kwargs: dict[str, Any] = {}
-            if pydantic_model is not None:
-                kwargs["pydantic_model"] = pydantic_model
-            data = fmt.write(param_data, **kwargs)
-            col.download_button(
-                label=f"Save as {fmt_cls.label}",
-                data=data,
-                file_name=f"{safe_name}_params.{suffix}",
-                mime=fmt_cls.mime_type,
-                width='stretch',
-                key=f"inline_param_export_{safe_name}_{suffix}",
-            )
-        except Exception as exc:
-            col.error(f"Could not generate {fmt_cls.label}: {exc}")
+    """Legacy function - use render_parameter_export_modal instead."""
+    render_parameter_export_modal(model_name, param_data, pydantic_model=pydantic_model, container=container)
 
 
 def render_pdf_export_button(container: Any = None) -> None:

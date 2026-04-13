@@ -489,20 +489,19 @@ def render_sidebar_parameters(
         ct.info("No default parameters defined for this model.")
         return params, label_overrides, {}, True
 
-    # --- reset callback -----------------------------------------------------
-    current_headers = model.scenario_labels
-
-    def _handle_reset() -> None:
+    # Handle refresh when new file uploaded - reset parameters to defaults
+    if should_refresh:
         reset_parameters_to_defaults(
             model_defaults, params, model_key, param_specs=model.parameter_specs
         )
-        for key, default_text in (current_headers or {}).items():
-            st.session_state[f"py_label_{model_key}_{key}"] = default_text
-
-    if should_refresh:
-        _handle_reset()
+        # Reset scenario labels if they exist  
+        current_headers = model.scenario_labels
+        if current_headers:
+            for key, default_text in current_headers.items():
+                st.session_state[f"py_label_{model_key}_{key}"] = default_text
 
     # --- scenario label overrides -------------------------------------------
+    current_headers = model.scenario_labels
     if current_headers:
         with ct.expander("Output Scenario Headers", expanded=False):
             st.caption("Rename the output headers")
@@ -529,8 +528,6 @@ def render_sidebar_parameters(
         param_groups=model.parameter_groups,
         container=ct,
     )
-
-    ct.button("Reset Parameters", on_click=_handle_reset, width='stretch')
 
     return params, label_overrides, model_defaults, False
 

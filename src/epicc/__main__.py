@@ -4,7 +4,7 @@ from pydantic import ValidationError
 from epicc.model.base import BaseSimulationModel
 from epicc.model.models import get_all_models
 from epicc.ui.export import (
-    render_parameter_export_inline,
+    render_parameter_export_modal,
     render_pdf_export_button,
     trigger_print_if_requested,
 )
@@ -12,6 +12,7 @@ from epicc.ui.parameters import (
     build_typed_params,
     render_sidebar_parameters,
     render_validation_error,
+    reset_parameters_to_defaults,
 )
 from epicc.ui.report import get_report_renderer
 from epicc.ui.state import (
@@ -130,13 +131,34 @@ with param_col:
             render_validation_error(selected_label, exc, container=param_col)
             has_input_errors = True
 
-    if typed_params is not None:
-        render_parameter_export_inline(
-            active_model.human_name(),
-            typed_params.model_dump(),
-            pydantic_model=type(typed_params),
-            container=param_col,
+    # Reset and Save Parameters buttons side by side 
+    button_col1, button_col2 = st.columns(2)
+    
+    # Reset Parameters button
+    def _handle_reset() -> None:
+        reset_parameters_to_defaults(
+            model_defaults_flat, params, selected_label, param_specs=active_model.parameter_specs
         )
+        # Reset scenario labels if they exist
+        current_headers = active_model.scenario_labels
+        if current_headers:
+            for key, default_text in current_headers.items():
+                st.session_state[f"py_label_{selected_label}_{key}"] = default_text
+    
+    with button_col1:
+        st.button("Reset Parameters", on_click=_handle_reset, width='stretch')
+    
+    # Save Parameters button (only enabled when parameters are valid)
+    with button_col2:
+        if typed_params is not None:
+            render_parameter_export_modal(
+                active_model.human_name(),
+                typed_params.model_dump(),
+                pydantic_model=type(typed_params),
+                container=button_col2,
+            )
+        else:
+            st.button("Save Parameters", disabled=True, width='stretch', help="Fix parameter errors first")
 
     st.divider()
     run_clicked = st.button(
