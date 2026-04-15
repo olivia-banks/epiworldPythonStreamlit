@@ -87,7 +87,7 @@ class YAMLFormat(BaseFormat[CommentedMap]):
 
         output = StringIO()
         yaml.dump(payload, output)
-        return output.getvalue().encode("utf-8")
+        return output.getvalue().encode("utf-8").strip()
 
     def write_template(self, model: BaseModel) -> bytes:
         """Write a YAML template from a model instance.
