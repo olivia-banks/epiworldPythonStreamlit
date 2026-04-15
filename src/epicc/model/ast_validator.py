@@ -163,11 +163,27 @@ def _validate_call_node(node: ast.Call, expr: str) -> None:
 
 
 def _validate_attribute_node(node: ast.Attribute, expr: str) -> None:
-    # For now, we allow all attribute access for reading
-    # Method calls are validated separately in _validate_call_node
-    # This allows things like: my_dict.get('key', default)
+    # Restrict attribute access to prevent reading dunder/private attributes
+    # This enhances sandbox security by blocking access to potentially dangerous attributes
     
-    pass
+    attr_name = node.attr
+    
+    # Block any attribute starting with underscore (private/dunder)
+    if attr_name.startswith('_'):
+        raise ValueError(
+            f"Access to private/dunder attribute '{attr_name}' is not allowed. "
+            f"Expression: {expr}"
+        )
+    
+    # Allow only safe dictionary-like methods
+    SAFE_ATTRIBUTES = {'get', 'keys', 'values', 'items'}
+    
+    if attr_name not in SAFE_ATTRIBUTES:
+        raise ValueError(
+            f"Attribute access to '{attr_name}' is not allowed. "
+            f"Only {sorted(SAFE_ATTRIBUTES)} are permitted. "
+            f"Expression: {expr}"
+        )
 
 
 def compile_equation(expr: str) -> tuple[CodeType, set[str]]:

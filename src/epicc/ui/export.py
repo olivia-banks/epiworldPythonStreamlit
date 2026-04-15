@@ -26,7 +26,7 @@ def _export_dialog(
     **EPICC** supports a variety of formats for exporting your parameter settings, each with its own advantages:
 
     - **Excel (XLSX)**: A familiar spreadsheet format that opens in Microsoft Excel, Google Sheets, or other spreadsheet applications.
-    - **YAML**: A text-based format, ideal for easy sharing. Can be editted in any text editor.
+    - **YAML**: A text-based format, ideal for easy sharing. Can be edited in any text editor.
 
     If you are unsure, YAML is a good default choice for its simplicity and readability.
     """)

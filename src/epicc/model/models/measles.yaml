@@ -212,7 +212,7 @@ report:
 
   - type: graph
     kind: pie
-    title: "Cost mix — large outbreak (803 cases)"
+    title: "Cost mix - large outbreak (803 cases)"
     caption: "Proportional breakdown of cost components for the 803-case scenario."
     columns:
       - "803_cases"

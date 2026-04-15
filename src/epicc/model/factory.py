@@ -98,7 +98,7 @@ def _sanitize_class_name(title: str) -> str:
     class_name = "".join(part.capitalize() for part in parts if part)
 
     if not class_name:
-        class_name = "InterpretedModel-" + str(abs(hash(title)))
+        class_name = "InterpretedModel_" + str(abs(hash(title)))
 
     return class_name
 

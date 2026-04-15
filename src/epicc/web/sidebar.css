@@ -18,7 +18,7 @@ div[data-testid="InputInstructions"] > span:nth-child(1) {
     display: none;
 }
 
-/* Weird, visually incongrous notes given by Plotly. */
+/* Weird, visually incongruous notes given by Plotly. */
 .notifier-note {
     display: none;
 }

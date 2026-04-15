@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Author(BaseModel):
@@ -23,6 +23,17 @@ class Parameter(BaseModel):
         None,
         description="Ordered mapping of constant->display label for enum parameters. Required when type='enum'.",
     )
+    
+    @model_validator(mode='after')
+    def validate_enum_options(self) -> 'Parameter':
+        """Ensure enum parameters have options and non-enum parameters don't."""
+        if self.type == 'enum':
+            if not self.options:
+                raise ValueError("Parameter with type='enum' must have 'options' defined")
+        else:
+            if self.options is not None:
+                raise ValueError(f"Parameter with type='{self.type}' cannot have 'options' (only enum parameters can)")
+        return self
 
 
 class ParameterGroup(BaseModel):

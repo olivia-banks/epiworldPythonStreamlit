@@ -1,7 +1,7 @@
-# AGENTS.md — epicc Cost Calculator
+# AGENTS.md - epicc Cost Calculator
 
 This file describes the conventions, roles, and constraints for contributors working in this
-repository. All agents — whether running in GitHub Actions or invoked interactively — should
+repository. All agents - whether running in GitHub Actions or invoked interactively - should
 read and follow this document before making changes.
 
 ---
@@ -20,7 +20,7 @@ The current app supports Python + YAML model flows:
 
 Current high-level flow:
 
-`discover_models() → load_model_from_file() / load_model_params() → render_parameters_with_indent() → run_model() → build_sections() → render_sections()`
+`discover_models() -> load_model_from_file() / load_model_params() -> render_parameters_with_indent() -> run_model() -> build_sections() -> render_sections()`
 
 Persistence helpers:
 - `store_model_state()`
@@ -192,8 +192,6 @@ Before editing:
 1. Read the relevant modules and tests for the target behavior.
 2. Identify whether the change affects model flow, parameter loading, or UI rendering.
 3. Confirm config and schema assumptions.
-</thinking>
-
 
 During editing:
 

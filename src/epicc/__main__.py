@@ -1,3 +1,5 @@
+from typing import cast
+
 import streamlit as st
 from pydantic import ValidationError
 
@@ -77,7 +79,7 @@ Always review the model assumptions before sharing outputs externally.
 
 ### Get started
 
-Choose a model from the combobox above to get started. Edit it's parameters on the
+Choose a model from the combobox above to get started. Edit its parameters on the
 left, run the simulation, and see the results on the right. Happy exploring!
 
 """
@@ -86,6 +88,7 @@ left, run the simulation, and see the results on the right. Happy exploring!
     st.stop()
 
 active_model = model_registry[selected_label]
+assert selected_label is not None  # Type narrowing for mypy
 params = sync_active_model(selected_label)
 
 param_col, result_col = st.columns([2, 3], gap="large")
@@ -108,14 +111,15 @@ with param_col:
     
     # Reset Parameters button
     def _handle_reset() -> None:
+        model_label = cast(str, selected_label)  # Safe because we checked above
         reset_parameters_to_defaults(
-            model_defaults_flat, params, selected_label, param_specs=active_model.parameter_specs
+            model_defaults_flat, params, model_label, param_specs=active_model.parameter_specs
         )
         # Reset scenario labels if they exist
         current_headers = active_model.scenario_labels
         if current_headers:
             for key, default_text in current_headers.items():
-                st.session_state[f"py_label_{selected_label}_{key}"] = default_text
+                st.session_state[f"py_label_{model_label}_{key}"] = default_text
     
     with button_col1:
         st.button("Reset Parameters", on_click=_handle_reset, width='stretch')

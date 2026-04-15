@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections import deque
 from difflib import get_close_matches
 from typing import Any
 
@@ -41,11 +42,11 @@ class EquationEvaluator:
         # https://en.wikipedia.org/wiki/Topological_sorting#Kahn's_algorithm
 
         in_degree = {eq_id: len(deps) for eq_id, deps in equation_deps.items()}
-        queue = [eq_id for eq_id, degree in in_degree.items() if degree == 0]
+        queue = deque([eq_id for eq_id, degree in in_degree.items() if degree == 0])
         result = []
 
         while queue:
-            eq_id = queue.pop(0)
+            eq_id = queue.popleft()
             result.append(eq_id)
 
             for other_eq_id, deps in equation_deps.items():
