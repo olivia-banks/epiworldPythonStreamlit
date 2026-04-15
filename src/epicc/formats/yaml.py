@@ -13,6 +13,7 @@ from ruamel.yaml.error import CommentMark
 from ruamel.yaml.tokens import CommentToken
 
 from epicc.formats.base import BaseFormat
+from epicc.formats.xlsx import _extract_nested_model as extract_nested_model
 
 
 class YAMLFormat(BaseFormat[CommentedMap]):
@@ -92,10 +93,10 @@ class YAMLFormat(BaseFormat[CommentedMap]):
         """Write a YAML template from a model instance.
 
         The model is dumped to a nested mapping; the natural YAML structure
-        is preserved without flattening. Descriptions are not embedded as
-        comments (YAML comment support is left to a future enhancement).
+        is preserved without flattening. Comments with field descriptions
+        are included when possible.
         """
-        return self.write(model.model_dump())
+        return self.write(model.model_dump(), pydantic_model=type(model))
 
 
 def _merge_mapping(target: CommentedMap, updates: dict[str, Any]) -> None:
@@ -120,10 +121,13 @@ def _field_descriptions_nested(model: type[BaseModel], prefix: str = "") -> dict
     result: dict[str, str] = {}
     for name, field_info in model.model_fields.items():
         key = f"{prefix}.{name}" if prefix else name
-        annotation = model.__annotations__.get(name)
-        origin = getattr(annotation, "__origin__", None)
-        if origin is None and isinstance(annotation, type) and issubclass(annotation, BaseModel):
-            result.update(_field_descriptions_nested(annotation, prefix=key))
+        
+        # Use field_info.annotation for better type resolution
+        annotation = field_info.annotation
+        nested_model = extract_nested_model(annotation)
+        
+        if nested_model:
+            result.update(_field_descriptions_nested(nested_model, prefix=key))
         else:
             result[key] = field_info.description or ""
     return result

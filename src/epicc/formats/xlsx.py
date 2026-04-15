@@ -7,7 +7,7 @@ Generic reader for XLSX parameter files. Expects a spreadsheet with at least two
 """
 
 from io import BytesIO
-from typing import IO, Any
+from typing import IO, Any, get_args, get_origin
 
 import openpyxl
 from openpyxl import Workbook
@@ -169,11 +169,13 @@ def _field_descriptions(model: type[BaseModel], prefix: str = "") -> dict[str, s
     result: dict[str, str] = {}
     for name, field_info in model.model_fields.items():
         key = f"{prefix}.{name}" if prefix else name
-        annotation = model.__annotations__.get(name)
-        # Recurse into nested BaseModel sub-models (type annotation check is best-effort)
-        origin = getattr(annotation, "__origin__", None)
-        if origin is None and isinstance(annotation, type) and issubclass(annotation, BaseModel):
-            result.update(_field_descriptions(annotation, prefix=key))
+        
+        # Use field_info.annotation for better type resolution
+        annotation = field_info.annotation
+        nested_model = _extract_nested_model(annotation)
+        
+        if nested_model:
+            result.update(_field_descriptions(nested_model, prefix=key))
         else:
             result[key] = (field_info.description or "").replace("\n", " ").strip()
     return result
@@ -189,6 +191,31 @@ def _flatten_dict(data: dict[str, Any], prefix: str = "") -> dict[str, Any]:
         else:
             flattened[dot_key] = value
     return flattened
+
+
+def _extract_nested_model(annotation: Any) -> type[BaseModel] | None:
+    """Extract BaseModel subclass from annotation, handling Optional, Union, etc."""
+    # Direct BaseModel subclass
+    try:
+        if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+            return annotation
+    except TypeError:
+        # Handle string annotations/forward refs
+        pass
+    
+    # Handle generic types like Optional[Model], list[Model], etc.
+    origin = get_origin(annotation)
+    if origin is not None:
+        args = get_args(annotation)
+        for arg in args:
+            try:
+                if isinstance(arg, type) and issubclass(arg, BaseModel):
+                    return arg
+            except TypeError:
+                # Handle string annotations within generic types
+                pass
+    
+    return None
 
 
 def _set_nested(d: dict, key: str, value: Any) -> None:

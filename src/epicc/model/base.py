@@ -55,3 +55,13 @@ class BaseSimulationModel(ABC, Generic[ParamsT]):
     def parameter_groups(self) -> list | None:
         """Optional parameter group tree for visual organization in the UI."""
         return None
+
+    def get_model_definition(self) -> Any:
+        """Return model definition for report generation (optional, for YAML-compiled models)."""
+        raise NotImplementedError(
+            "get_model_definition() is only available for YAML-compiled models"
+        )
+
+    def get_source_path(self) -> str | None:
+        """Return source file path for debugging/introspection (optional)."""
+        return None
