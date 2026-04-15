@@ -11,20 +11,20 @@ read and follow this document before making changes.
 **epicc** is a browser-based epidemiological cost calculator built with **Streamlit** and
 distributed as a static **stlite** build for browser execution.
 
-The current app supports Python + YAML model flows:
+The current app supports YAML-driven model flows:
 
-- A Python module in `models/` implements model logic.
-- A paired YAML file provides default parameters.
-- `app.py` loads the Python module, loads YAML defaults, renders parameter inputs,
-  runs the model, and renders sections.
+- A YAML file in `src/epicc/model/models/` defines model metadata, parameters, equations, scenarios, and report structure.
+- The `ModelFactory` compiles YAML models into Python `BaseSimulationModel` subclasses at runtime.
+- `src/epicc/__main__.py` loads models via `MODEL_REGISTRY`, renders parameter inputs via `src/epicc/ui/`, 
+  runs compiled models, and renders results via `src/epicc/ui/report.py`.
 
 Current high-level flow:
 
-`discover_models() -> load_model_from_file() / load_model_params() -> render_parameters_with_indent() -> run_model() -> build_sections() -> render_sections()`
+`MODEL_REGISTRY.discover() -> load_model() -> ModelFactory.create_model_class() -> render_sidebar_parameters() -> model.run() -> render_sections()`
 
 Persistence helpers:
-- `store_model_state()`
-- `save_current_model()`
+- `sync_active_model()`
+- Parameter export via `src/epicc/ui/export.py`
 
 ---
 
